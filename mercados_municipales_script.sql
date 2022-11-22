@@ -1,0 +1,198 @@
+--Drop de las tablas
+DROP TABLE Titular;
+DROP TABLE Mercado;
+DROP TABLE Espacios;
+DROP TABLE Fianza;
+DROP TABLE Faltas;
+DROP TABLE Concesiones;
+DROP TABLE Instalaciones;
+DROP TABLE Zonas;
+
+--Creacion de los dominios
+CREATE DOMAIN tipoDeZona AS VARCHAR(14)
+	CHECK (VALUE IN ('zona comercial', 'puesto'));
+	
+CREATE DOMAIN tipoGestion AS VARCHAR(9)
+	CHECK (VALUE IN ('directa', 'indirecta'));
+	
+CREATE DOMAIN tipoConcesion AS VARCHAR(12)
+	CHECK (VALUE IN ('adjudicacion', 'renovacion', 'traspaso'));
+	
+CREATE DOMAIN tipoPersona AS VARCHAR(8)
+	CHECK (VALUE IN ('judicial', 'fisica'));
+	
+CREATE DOMAIN estadoFianza AS VARCHAR(9)
+	CHECK (VALUE IN ('pagada', 'no pagada', 'devuelta'));
+	
+CREATE DOMAIN tipoProducto AS VARCHAR(12)
+	CHECK (VALUE IN ('alimentacion', 'otros'));
+	
+CREATE DOMAIN gravedadFaltas AS VARCHAR(9)
+	CHECK (VALUE IN ('leve', 'grave', 'muy grave'));
+	
+CREATE DOMAIN tipoAdjudicacion AS VARCHAR(8)
+	CHECK (VALUE IN ('fijo', 'especial', 'temporal'));
+	
+CREATE DOMAIN tipoInstalacion AS VARCHAR(14)
+	CHECK (VALUE IN ('complementaria', 'auxiliar'));
+	
+--Creacion de las tablas
+CREATE TABLE Titular(
+	dni CHAR(10),
+	persona tipoPersona NOT NULL,
+	nombre VARCHAR(30) NOT NULL,
+	apellidos VARCHAR(200),
+	PRIMARY KEY (dni)
+);
+
+CREATE TABLE Mercado(
+	nombre VARCHAR(100),
+	gestion tipoGestion NOT NULL,
+	horario_apertura TIME,
+	horario_cierre TIME,
+	PRIMARY KEY (nombre)
+);
+
+CREATE TABLE Espacios(
+	id VARCHAR(10),
+	nombre VARCHAR(100),
+	calle VARCHAR(100) NOT NULL,
+	numero INTEGER,
+	falta_leve BOOLEAN DEFAULT FALSE,
+	falta_grave BOOLEAN DEFAULT FALSE,
+	obras BOOLEAN DEFAULT FALSE,
+	PRIMARY KEY (id),
+	FOREIGN KEY (nombre) REFERENCES Mercado
+		ON DELETE CASCADE
+);
+
+CREATE TABLE Fianza(
+	id VARCHAR(10),
+	dni CHAR(10) NOT NULL,
+	fecha DATE NOT NULL,
+	cantidad REAL,
+	estado estadoFianza NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY (dni) REFERENCES Titular
+		ON DELETE CASCADE
+);
+
+CREATE TABLE Faltas(
+	id VARCHAR(10),
+	dni CHAR(10) NOT NULL,
+	idE VARCHAR(10) NOT NULL,
+	motivo VARCHAR(1000),
+	fecha DATE NOT NULL,
+	gravedad gravedadFaltas NOT NULL,
+	informe VARCHAR(1000),
+	tiempo_sancion INTEGER,
+	pago_sancion REAL,
+	PRIMARY KEY (id),
+	FOREIGN KEY (dni) REFERENCES Titular
+		ON DELETE CASCADE,
+	FOREIGN KEY (idE) REFERENCES Espacios (id)
+);
+
+CREATE TABLE Concesiones(
+	fecha_inicio DATE,
+	dni CHAR(10),
+	id VARCHAR(10),
+	fecha_final DATE NOT NULL,
+	condiciones VARCHAR(1000),
+	precio REAL NOT NULL,
+	tipo_concesion tipoConcesion NOT NULL,
+	condicion_adjudicacion tipoAdjudicacion NOT NULL,
+	PRIMARY KEY (fecha_inicio, dni, id),
+	FOREIGN KEY (dni) REFERENCES Titular,
+	FOREIGN KEY (id) REFERENCES Espacios
+		ON DELETE CASCADE,
+	CONSTRAINT comprobar_tipo_concesion CHECK (
+		(tipo_concesion = 'traspaso' AND condicion_adjudicacion = 'fijo')
+		OR (tipo_concesion <> 'traspaso')
+	),
+	CONSTRAINT orden_fechas CHECK (fecha_inicio<fecha_final)
+);
+
+CREATE TABLE Instalaciones(
+	id VARCHAR(10),
+	tipo tipoInstalacion NOT NULL,
+	descripcion VARCHAR(1000),
+	PRIMARY KEY (id),
+	FOREIGN KEY (id) REFERENCES Espacios
+		ON DELETE CASCADE
+);
+
+CREATE TABLE Zonas(
+	id VARCHAR(10),
+	espacio REAL NOT NULL,
+	producto tipoProducto NOT NULL,
+	tipo tipoDeZona NOT NULL,
+	PRIMARY KEY (id),
+	FOREIGN KEY (id) REFERENCES Espacios
+		ON DELETE CASCADE
+);
+
+--Insertar tuplas
+insert into Mercado values ('Mercado de la Ribera', 'Directa','8:00:00','20:00:00');
+insert into Mercado values ('Mercado del Ensanche', 'Indirecta','9:30:00','22:00:00');
+
+insert into Titular values ('10314892M', 'fisica','Marta','Gomez Lopez');
+insert into Titular values ('20235400M', 'fisica','Juan','Martinez Garcia');
+insert into Titular values ('32370923B', 'fisica','Pablo','Pacheco Jimenez');
+insert into Titular values ('45908140W', 'fisica','Irene','Tartilan Aranda');
+insert into Titular values ('56573729F', 'fisica','Natalia','Sanchez Saez');
+insert into Titular values ('665737297', 'juridica','Dulces y conservas Helios S.A.',NULL);
+
+insert into Concesiones values ('10-11-2021','10314892M','es01','9-12-2021','condidiciones1','12334.95','traspaso','temporal');
+insert into Concesiones values ('01-12-2020','10314892M','es02','02-12-2021','condidiciones2','645254.95','traspaso','fijo');
+insert into Concesiones values ('02-12-2021','20235400M','es02','03-12-2022','condidiciones3','124.95','traspaso','fijo');
+insert into Concesiones values ('10-12-2021','32370923B','es03','09-12-2021','condidiciones4','286734.95','traspaso','temporal');
+insert into Concesiones values ('10-11-2021','32370923B','es03','15-12-2021','condidiciones5','9934.95','traspaso','especial');
+insert into Concesiones values ('01-12-2020','32370923B','es05','02-12-2021','condidiciones6','175734.95','adjudicacion','fijo');
+insert into Concesiones values ('02-12-2021','45908140W','es05','03-12-2022','condidiciones7','875834.95','adjudicacion','fijo');
+insert into Concesiones values ('04-10-2020','56573729F','es06','07-12-2021','condidiciones8','1834.95','adjudicacion','fijo');
+insert into Concesiones values ('07-12-2021','665737297','es06','30-12-2021','condidiciones9','884.95','renovacion','temporal');
+insert into Concesiones values ('01-11-2021','665737297','es07','15-11-2021','condidiciones10','10034.95','renovacion','temporal');
+insert into Concesiones values ('15-11-2021','665737297','es07','30-11-2021','condidiciones11','334.95','renovacion','temporal');
+
+insert into Faltas values ('fa01','es01','10314892M','motivo1','01/10/2021','leve','informe1','20,50');
+insert into Faltas values ('fa01','es02','10314892M','motivo2','02/10/2021','grave','informe2','21,50');
+insert into Faltas values ('fa01','es03','32370923B','motivo3','03/10/2021','leve','informe3','22.50');
+insert into Faltas values ('fa01','es03','32370923B','motivo4','04/10/2021','leve','informe4','23.50');
+insert into Faltas values ('fa01','es05','45908140W','motivo5','05/10/2021','leve','informe5','24.50');
+insert into Faltas values ('fa01','es06','56573729F','motivo6','06/10/2021','grave','informe6','25.50');
+insert into Faltas values ('fa01','es06','665737297','motivo7','07/10/2021','leve','informe7','26.50');
+
+insert into Espacios values ('es01','Mercado de la Ribera','Rodriguez Arias',TRUE,FALSE);
+insert into Espacios values ('es02', 'Mercado de la Ribera','Licenciado Poza',FALSE,FALSE);
+insert into Espacios values ('es03', 'Mercado de la Ribera','Iparguirre',FALSE,TRUE);
+insert into Espacios values ('es04', 'Mercado de la Ribera','Maria Diaz de Haro',TRUE,FALSE);
+insert into Espacios values ('es05', 'Mercado del Ensanche','Gordoniz Kalea',FALSE,FALSE);
+insert into Espacios values ('es06', 'Mercado del Ensanche','Egaña',FALSE,FALSE);
+insert into Espacios values ('es07', 'Mercado del Ensanche','Fernandez del Campo Kalea',FALSE,TRUE);
+
+insert into Instalaciones values ('es01','complementaria','descripcion1');
+insert into Instalaciones values ('es02','complementaria','descripcion2');
+insert into Instalaciones values ('es03','complementaria','descripcion3');
+insert into Instalaciones values ('es04','auxiliar','descripcion4');
+insert into Instalaciones values ('es05','complementaria','descripcion5');
+insert into Instalaciones values ('es06','complementaria','descripcion6');
+insert into Instalaciones values ('es07','auxiliar','descripcion7');
+
+insert into Zonas values ('es01','155.89','alimentacion','zona comercial');
+insert into Zonas values ('es02','355.89','otros','puesto');
+insert into Zonas values ('es03','94.89','alimentacion','ona comercial');
+insert into Zonas values ('es04','285.89','alimentacion,zona comercial');
+insert into Zonas values ('es05','545.89','otros','zona comercial');
+insert into Zonas values ('es06','645.89','otros','zona comercial');
+insert into Zonas values ('es07','485.89','alimentacion','puesto');
+
+insert into Fianza values ('fi01','10314892M','29-10-2021','1233.99','pagada');
+insert into Fianza values ('fi02','10314892M','30-11-2021','533.54','no pagada');
+insert into Fianza values ('fi03','20235400M','05-09-2021','1275.50','no pagada');
+insert into Fianza values ('fi04','32370923B','14-10-2021','18855.99','pagada');
+insert into Fianza values ('fi05','45908140W','23-11-2021','857853.99','devuelta');
+insert into Fianza values ('fi06','56573729F','1-12-2021','48585.50','pagada');
+insert into Fianza values ('fi07','665737297','28-09-2021','874573.50','no pagada');
+insert into Fianza values ('fi08','665737297','21-10-2021','18583.394','pagada');
+
